@@ -17,6 +17,7 @@ pub enum Escaping {
 /// Struct for generating Markdown
 pub struct Markdown<W: Write> {
     writer: W,
+    escape_mode: Escaping,
 }
 
 impl<W: Write> Markdown<W> {
@@ -26,7 +27,15 @@ impl<W: Write> Markdown<W> {
     ///
     /// * `writer` - Destination for Markdown data
     pub fn new(writer: W) -> Self {
-        Self { writer }
+        Self::new_with_escaping(writer, Escaping::Normal)
+    }
+
+    /// Creates a new [`Markdown`] writer with the provided escape mode
+    pub fn new_with_escaping(writer: W, escape_mode: Escaping) -> Self {
+        Self {
+            writer,
+            escape_mode,
+        }
     }
 
     /// Returns the underlying `writer` and consumes the object
@@ -39,8 +48,26 @@ impl<W: Write> Markdown<W> {
     /// # Returns
     /// `()` or `std::io::Error` if an error occurred during writing to the underlying writer
     pub fn write<T: MarkdownWritable>(&mut self, element: T) -> Result<(), io::Error> {
-        element.write_to(&mut self.writer, false, Normal, None)?;
+        self.write_with_escape(element, self.escape_mode)?;
         Ok(())
+    }
+
+    /// Writes a [MarkdownWritable](trait.MarkdownWritable.html) to the document with the
+    /// [`Escaping::InlineCode`] escaping mode.
+    ///
+    pub fn write_unescaped<T: MarkdownWritable>(&mut self, element: T) -> Result<(), io::Error> {
+        self.write_with_escape(element, Escaping::InlineCode)?;
+        Ok(())
+    }
+
+    /// Writes a [MarkdownWritable](trait.MarkdownWritable.html) to the document using
+    /// the provided escaping
+    pub fn write_with_escape<T: MarkdownWritable>(
+        &mut self,
+        element: T,
+        escaping: Escaping,
+    ) -> Result<(), io::Error> {
+        element.write_to(&mut self.writer, false, escaping, None)
     }
 }
 
